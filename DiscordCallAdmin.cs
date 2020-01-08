@@ -9,7 +9,7 @@ using Oxide.Ext.Discord.DiscordObjects;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord CallAdmin", "evlad", "0.1.0")]
+	[Info("Discord CallAdmin", "evlad", "0.1.1")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -60,6 +60,11 @@ namespace Oxide.Plugins
 
 		#region Initialization & Setup
 
+		private void OnServerInitialized()
+		{
+			DiscordCore?.Call("RegisterPluginForExtensionHooks", this);
+		}
+
 		private void Init()
 		{
 			_config = Config.ReadObject<PluginConfig>();
@@ -95,7 +100,7 @@ namespace Oxide.Plugins
 			bool categoryExists = false;
 
 			foreach (var channel in channels) {
-				if (channel.id == _config.CategoryID)
+				if (channel.id == _config.CategoryID && channel.type == ChannelType.GUILD_CATEGORY)
 					categoryExists = true;
 				if (channel.parent_id == _config.CategoryID)
 					SubscribeToChannel(channel);
@@ -109,7 +114,7 @@ namespace Oxide.Plugins
 		#region Helpers
 
 		[HookMethod("StartLiveChat")]
-		private bool StartLiveChat(string playerID)
+		public bool StartLiveChat(string playerID)
 		{
 			BasePlayer player = GetPlayerByID(playerID);
 			if (!player) {
@@ -148,16 +153,13 @@ namespace Oxide.Plugins
 
 
 		[HookMethod("StopLiveChat")]
-		private void StopLiveChat(string playerID, string reason = null)
+		public void StopLiveChat(string playerID, string reason = null)
 		{
-			
 			Channel channel = (Channel)DiscordCore.Call("GetChannel", playerID);
-
 			if (channel == null)
 				return;
 
 			DiscordCore.Call("SendMessageToChannel", channel.id, $"@here The chat has been closed. Self-deletion in 10 seconds..." + (reason != null ? "\nReason: " + reason : ""));
-
 			timer.Once(10f, () =>
 			{
 				channel.DeleteChannel(_discordClient);
@@ -215,11 +217,12 @@ namespace Oxide.Plugins
 
 		#region Events
 
-		private void OnChannelDelete(Channel channel)
-		{
+		private void Discord_ChannelDelete(Channel channel)
+        {
 			if (channel.parent_id == _config.CategoryID)
 				SendMessageToPlayerID(channel.name, "<color=#33b5e5>An admin closed the live chat.</color>");
-		}
+        }
+
 		private void OnUserDisconnected(IPlayer player)
 		{
 			StopLiveChat(player.Id, "Player disconnected.");
@@ -232,6 +235,8 @@ namespace Oxide.Plugins
 		[Command("calladmin")]
 		private void CallAdminCommand(IPlayer player, string command, string[] args)
 		{
+			if (!IsDiscordReady())
+				return;
 			player.Command("chat.add", 0, _config.SteamProfileIcon,
 				StartLiveChat(player.Id) ?
 					"<color=#00C851>Admins have been notified, they'll get in touch with you as fast as possible.</color>" :
@@ -248,7 +253,7 @@ namespace Oxide.Plugins
 				return;
 			}
 			string pid = player.Id;
-			Channel replyChannel = (Channel)DiscordCore.Call("GetChannel", pid);
+			Channel replyChannel = (Channel)DiscordCore?.Call("GetChannel", pid);
 
 			if (replyChannel == null || replyChannel.name != player.Id) {
 				player.Command("chat.add", 0, _config.SteamProfileIcon, "You have no live chat in progress.");
