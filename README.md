@@ -1,6 +1,6 @@
 # Discord Call Admin for Oxide Rust
 
-Version: 0.1.1
+Version: 0.1.2
 
 ## Dependencies
 
