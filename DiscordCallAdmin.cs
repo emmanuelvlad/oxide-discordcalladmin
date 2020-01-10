@@ -60,10 +60,10 @@ namespace Oxide.Plugins
 
 		#region Initialization & Setup
 
-		private void OnServerInitialized()
-		{
-			DiscordCore?.Call("RegisterPluginForExtensionHooks", this);
-		}
+		// private void OnServerInitialized()
+		// {
+		// 	DiscordCore?.Call("RegisterPluginForExtensionHooks", this);
+		// }
 
 		private void Init()
 		{
@@ -93,6 +93,7 @@ namespace Oxide.Plugins
 
 		private void Setup()
 		{
+			DiscordCore?.Call("RegisterPluginForExtensionHooks", this);
 			_discordClient = (DiscordClient)DiscordCore?.Call("GetClient");
 			_discordGuild = _discordClient.DiscordServer;
 
