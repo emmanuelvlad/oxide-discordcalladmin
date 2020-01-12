@@ -1,11 +1,12 @@
-# Discord Call Admin for Oxide Rust
+Players can use a command that creates a channel and notifies admins in discord, admins can reply from within this channel to the player.
 
-Version: 0.1.2
 
-## Dependencies
+## Commands
 
-**[Discord](https://umod.org/extensions/discord)**  
-**[DiscordCore](https://umod.org/plugins/discord-core)** ^0.14.4
+- `/calladmin`  
+Creates a channel under `CategoryID` and notifies admins.
+- `/r [message]`  
+Replies to the admin. Default: `r`, configurable in `ReplyCommand`
 
 ## Configuration
 
