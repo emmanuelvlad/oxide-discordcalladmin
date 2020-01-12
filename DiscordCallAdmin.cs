@@ -5,11 +5,12 @@ using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using Oxide.Ext.Discord;
 using Oxide.Ext.Discord.DiscordObjects;
+using ConVar;
 
 
 namespace Oxide.Plugins
 {
-	[Info("Discord CallAdmin", "evlad", "0.1.2")]
+	[Info("Discord Call Admin", "evlad", "0.1.2")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -46,17 +47,38 @@ namespace Oxide.Plugins
 			}
 		}
 
+		// protected override void LoadConfig()
+		// {
+		// 	base.LoadConfig();
+		// 	_config = Config.ReadObject<PluginConfig>();
+		// }
 
-		protected override void LoadConfig()
-		{
-			base.LoadConfig();
-			_config = Config.ReadObject<PluginConfig>();
-		}
 		protected override void LoadDefaultConfig() => _config = PluginConfig.Default();
 		protected override void SaveConfig() => Config.WriteObject(_config);
 
-
 		#endregion
+
+		#region Localization
+        protected override void LoadDefaultMessages()
+        {
+            lang.RegisterMessages(new Dictionary<string, string>
+            {
+                ["CallAdminNotAvailable"] = "/calladmin is not available yet.",
+                ["CallAdminSuccess"] = "[#00C851]Admins have been notified, they'll get in touch with you as fast as possible.[/#]",
+				["CallAdminAlreadyCalled"] = "[#ff4444]You've already notified the admins, please wait until an admin responds.[/#]",
+				["CallAdminMessageLayout"] = "[#9c0000]Admin Live Chat[/#]\n{0}\n\n\n[#dadada]Reply by typing[/#] [#bd8f8f]/{1} [message][/#]",
+				["ReplyNotAvailable"] = "/{0} is not available yet.",
+				["ReplyCommandUsage"] = "Usage: /{0} [message]",
+				["ReplyNoLiveChatInProgress"] = "You have no live chat in progress.",
+				["ReplyWaitForAdminResponse"] = "[#ff4444]Wait until an admin responds.[/#]",
+				["ReplyMessageSent"] = "Your message has been sent to the admins!",
+				["ChatClosed"] = "[#55aaff]An admin closed the live chat.[/#]"
+            }, this);
+        }
+
+		private string GetTranslation(string key, string id = null, params object[] args) => covalence.FormatText(string.Format(lang.GetMessage(key, this, id), args));
+
+        #endregion
 
 		#region Initialization & Setup
 
@@ -94,7 +116,7 @@ namespace Oxide.Plugins
 		private void Setup()
 		{
 			DiscordCore?.Call("RegisterPluginForExtensionHooks", this);
-			_discordClient = (DiscordClient)DiscordCore?.Call("GetClient");
+			_discordClient = DiscordCore?.Call<DiscordClient>("GetClient");
 			_discordGuild = _discordClient.DiscordServer;
 
 			List<Channel> channels = (List<Channel>)DiscordCore?.Call("GetAllChannels");
@@ -156,7 +178,7 @@ namespace Oxide.Plugins
 		[HookMethod("StopLiveChat")]
 		public void StopLiveChat(string playerID, string reason = null)
 		{
-			Channel channel = (Channel)DiscordCore.Call("GetChannel", playerID);
+			Channel channel = DiscordCore.Call<Channel>("GetChannel", playerID);
 			if (channel == null)
 				return;
 
@@ -170,7 +192,7 @@ namespace Oxide.Plugins
 		private void SubscribeToChannel(Channel channel)
 		{
 			DiscordCore?.Call("SubscribeChannel", channel.id, this, new Func<Message, object>((message) => {
-				JObject userMessage = (JObject)DiscordCore?.Call("GetUserDiscordInfo", message.author.id);
+				JObject userMessage = DiscordCore?.Call<JObject>("GetUserDiscordInfo", message.author.id);
 				if (userMessage == null) {
 					message.CreateReaction(_discordClient, "❌");
 					return null;
@@ -180,7 +202,7 @@ namespace Oxide.Plugins
 					channel.DeleteChannel(_discordClient);
 					return null;
 				}
-				if (!SendMessageToPlayerID(channel.name, "<color=#9c0000>Admin Live Chat</color>\n" + message.content + "\n\n\n<color=#dadada>Reply by typing </color><color=#bd8f8f>/" + _config.ReplyCommand +" <message></color>")) {
+				if (!SendMessageToPlayerID(channel.name, GetTranslation("CallAdminMessageLayout", channel.name, message.content, _config.ReplyCommand))) {
 					DiscordCore.Call("SendMessageToChannel", channel.id, "User is not connected, the live chat will close in 5 seconds...");
 					timer.Once(5f, () =>
 					{
@@ -205,7 +227,7 @@ namespace Oxide.Plugins
 			if (player == null)
 				return false;
 			
-			player.Command("chat.add", 0, _config.SteamProfileIcon, message);
+			player.Command("chat.add", Chat.ChatChannel.Server, _config.SteamProfileIcon, message);
 			return true;
 		}
 
@@ -221,7 +243,7 @@ namespace Oxide.Plugins
 		private void Discord_ChannelDelete(Channel channel)
         {
 			if (channel.parent_id == _config.CategoryID)
-				SendMessageToPlayerID(channel.name, "<color=#33b5e5>An admin closed the live chat.</color>");
+				SendMessageToPlayerID(channel.name, GetTranslation("ChatClosed", channel.name));
         }
 
 		private void OnUserDisconnected(IPlayer player)
@@ -236,41 +258,48 @@ namespace Oxide.Plugins
 		[Command("calladmin")]
 		private void CallAdminCommand(IPlayer player, string command, string[] args)
 		{
-			if (!IsDiscordReady())
+			if (!IsDiscordReady()) {
+				player.Reply(GetTranslation("CallAdminNotAvailable", player.Id));
 				return;
-			player.Command("chat.add", 0, _config.SteamProfileIcon,
-				StartLiveChat(player.Id) ?
-					"<color=#00C851>Admins have been notified, they'll get in touch with you as fast as possible.</color>" :
-					"<color=#ff4444>You've already notified the admins, please wait until an admin responds.</color>"
+			}
+			SendMessageToPlayerID(
+				player.Id,
+				GetTranslation(
+					StartLiveChat(player.Id) ?
+						"CallAdminSuccess" :
+						"CallAdminAlreadyCalled", player.Id
+				)
 			);
 		}
 
 		private void ReplyCommand(IPlayer player, string command, string[] args)
 		{
-			if (!IsDiscordReady())
+			if (!IsDiscordReady()) {
+				player.Reply(GetTranslation("ReplyNotAvailable", player.Id, _config.ReplyCommand));
 				return;
+			}
 			if (args.Length < 1) {
-				player.Reply("Usage: /r <message>");
+				player.Reply(GetTranslation("ReplyCommandUsage", player.Id, _config.ReplyCommand));
 				return;
 			}
 			string pid = player.Id;
-			Channel replyChannel = (Channel)DiscordCore?.Call("GetChannel", pid);
+			Channel replyChannel = DiscordCore?.Call<Channel>("GetChannel", pid);
 
 			if (replyChannel == null || replyChannel.name != player.Id) {
-				player.Command("chat.add", 0, _config.SteamProfileIcon, "You have no live chat in progress.");
+				SendMessageToPlayerID(player.Id, GetTranslation("ReplyNoLiveChatInProgress", player.Id));
 				return;
 			}
 
 			replyChannel.GetChannelMessages(_discordClient, messages =>
 			{
 				if (messages.Count < 2) {
-					player.Command("chat.add", 0, _config.SteamProfileIcon, "<color=#ff4444>Wait until an admin responds.</color>");
+					SendMessageToPlayerID(player.Id, GetTranslation("ReplyWaitAdminResponse", player.Id));
 					return;
 				}
 
 				DateTime now = DateTime.Now;
 				DiscordCore?.Call("SendMessageToChannel", replyChannel.id, $"({now.Hour.ToString() + ":" + now.Minute.ToString()}) {player.Name}: {string.Join(" ", args)}");
-				player.Command("chat.add", 0, _config.SteamProfileIcon, "Your message has been sent to the admins!");
+				SendMessageToPlayerID(player.Id, GetTranslation("ReplyMessageSent", player.Id));
 			});
 		}
 
