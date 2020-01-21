@@ -10,7 +10,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.1.3")]
+	[Info("Discord Call Admin", "evlad", "0.1.4")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -192,11 +192,11 @@ namespace Oxide.Plugins
 		private void SubscribeToChannel(Channel channel)
 		{
 			DiscordCore?.Call("SubscribeChannel", channel.id, this, new Func<Message, object>((message) => {
-				JObject userMessage = DiscordCore?.Call<JObject>("GetUserDiscordInfo", message.author.id);
-				if (userMessage == null) {
-					message.CreateReaction(_discordClient, "❌");
-					return null;
-				}
+				// JObject userMessage = DiscordCore?.Call<JObject>("GetUserDiscordInfo", message.author.id);
+				// if (userMessage == null) {
+				// 	message.CreateReaction(_discordClient, "❌");
+				// 	return null;
+				// }
 
 				if (message.content == "!close") {
 					channel.DeleteChannel(_discordClient);
