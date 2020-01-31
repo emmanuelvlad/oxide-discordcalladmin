@@ -1,5 +1,7 @@
 Players can use a command that creates a channel and notifies admins in discord, admins can reply from within this channel to the player.
+## Permissions
 
+- `discordcalladmin.use` - Allows the player to use /calladmin
 
 ## Commands
 

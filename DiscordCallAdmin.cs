@@ -15,7 +15,6 @@ namespace Oxide.Plugins
 
 	internal class DiscordCallAdmin : CovalencePlugin
 	{
-		
 		#region Variables
 
 		[PluginReference]
@@ -59,12 +58,12 @@ namespace Oxide.Plugins
 		#endregion
 
 		#region Localization
-        protected override void LoadDefaultMessages()
-        {
-            lang.RegisterMessages(new Dictionary<string, string>
-            {
-                ["CallAdminNotAvailable"] = "/calladmin is not available yet.",
-                ["CallAdminSuccess"] = "[#00C851]Admins have been notified, they'll get in touch with you as fast as possible.[/#]",
+		protected override void LoadDefaultMessages()
+		{
+			lang.RegisterMessages(new Dictionary<string, string>
+			{
+				["CallAdminNotAvailable"] = "/calladmin is not available yet.",
+				["CallAdminSuccess"] = "[#00C851]Admins have been notified, they'll get in touch with you as fast as possible.[/#]",
 				["CallAdminAlreadyCalled"] = "[#ff4444]You've already notified the admins, please wait until an admin responds.[/#]",
 				["CallAdminMessageLayout"] = "[#9c0000]Admin Live Chat[/#]\n{0}\n\n\n[#dadada]Reply by typing[/#] [#bd8f8f]/{1} [message][/#]",
 				["ReplyNotAvailable"] = "/{0} is not available yet.",
@@ -72,13 +71,14 @@ namespace Oxide.Plugins
 				["ReplyNoLiveChatInProgress"] = "You have no live chat in progress.",
 				["ReplyWaitForAdminResponse"] = "[#ff4444]Wait until an admin responds.[/#]",
 				["ReplyMessageSent"] = "Your message has been sent to the admins!",
-				["ChatClosed"] = "[#55aaff]An admin closed the live chat.[/#]"
-            }, this);
-        }
+				["ChatClosed"] = "[#55aaff]An admin closed the live chat.[/#]",
+				["NoPermission"] = "You do not have permission to use /calladmin."
+			}, this);
+		}
 
 		private string GetTranslation(string key, string id = null, params object[] args) => covalence.FormatText(string.Format(lang.GetMessage(key, this, id), args));
 
-        #endregion
+		#endregion
 
 		#region Initialization & Setup
 
@@ -89,6 +89,7 @@ namespace Oxide.Plugins
 
 		private void Init()
 		{
+			permission.RegisterPermission("discordcalladmin.use", this);
 			_config = Config.ReadObject<PluginConfig>();
 
 			if (_config.ReplyCommand.Length > 0) {
@@ -241,10 +242,10 @@ namespace Oxide.Plugins
 		#region Events
 
 		private void Discord_ChannelDelete(Channel channel)
-        {
+		{
 			if (channel.parent_id == _config.CategoryID)
 				SendMessageToPlayerID(channel.name, GetTranslation("ChatClosed", channel.name));
-        }
+		}
 
 		private void OnUserDisconnected(IPlayer player)
 		{
@@ -258,6 +259,11 @@ namespace Oxide.Plugins
 		[Command("calladmin")]
 		private void CallAdminCommand(IPlayer player, string command, string[] args)
 		{
+			if (!player.HasPermission("discordcalladmin.use"))
+			{
+				player.Reply(GetTranslation("NoPermission", player.Id));
+				return;
+			}
 			if (!IsDiscordReady()) {
 				player.Reply(GetTranslation("CallAdminNotAvailable", player.Id));
 				return;
