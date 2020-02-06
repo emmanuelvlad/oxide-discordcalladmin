@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json.Linq;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using Oxide.Ext.Discord;
@@ -10,7 +9,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.1.5")]
+	[Info("Discord Call Admin", "evlad", "0.1.6")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -34,6 +33,7 @@ namespace Oxide.Plugins
 			public string CategoryID;
 			public string ReplyCommand;
 			public string SteamProfileIcon;
+			public List<string> AllowedRoles;
 
 			public static PluginConfig Default()
 			{
@@ -41,7 +41,8 @@ namespace Oxide.Plugins
 				{
 					CategoryID = "",
 					ReplyCommand = "r",
-					SteamProfileIcon = ""
+					SteamProfileIcon = "",
+					AllowedRoles = new List<string>{}
 				};
 			}
 		}
@@ -65,12 +66,12 @@ namespace Oxide.Plugins
 				["CallAdminNotAvailable"] = "/calladmin is not available yet.",
 				["CallAdminSuccess"] = "[#00C851]Admins have been notified, they'll get in touch with you as fast as possible.[/#]",
 				["CallAdminAlreadyCalled"] = "[#ff4444]You've already notified the admins, please wait until an admin responds.[/#]",
-				["CallAdminMessageLayout"] = "[#9c0000]Admin Live Chat[/#]\n{0}\n\n\n[#dadada]Reply by typing[/#] [#bd8f8f]/{1} [message][/#]",
+				["CallAdminMessageLayout"] = "[#9c0000]Admin Live Chat[/#] - <size=11>[#dadada]Reply by typing:[/#] [#bd8f8f]/{1} [message][/#]</size>\n{0}",
 				["ReplyNotAvailable"] = "/{0} is not available yet.",
 				["ReplyCommandUsage"] = "Usage: /{0} [message]",
 				["ReplyNoLiveChatInProgress"] = "You have no live chat in progress.",
 				["ReplyWaitForAdminResponse"] = "[#ff4444]Wait until an admin responds.[/#]",
-				["ReplyMessageSent"] = "Your message has been sent to the admins!",
+				["ReplyMessageSent"] = "[#00C851]Your message has been sent to the admins[/#]\n{0}: {1}",
 				["ChatClosed"] = "[#55aaff]An admin closed the live chat.[/#]",
 				["NoPermission"] = "You do not have permission to use /calladmin."
 			}, this);
@@ -163,7 +164,16 @@ namespace Oxide.Plugins
 				}
 			};
 
-			_discordGuild.CreateGuildChannel(_discordClient, channel, createdChannel => {
+			// Temporary solution. Will use category sync when Discord.Ext will get updated
+			_config.AllowedRoles.ForEach(role => {
+				channel.permission_overwrites.Add(new Overwrite{
+					id = role,
+					type = "role",
+					allow = 0x00000400
+				});
+			});
+
+			_discordGuild.CreateGuildChannel(_discordClient, channel, (Channel createdChannel) => {
 				createdChannel.parent_id = _config.CategoryID;
 				createdChannel.ModifyChannel(_discordClient, createdChannel, _ =>
 				{
@@ -290,6 +300,7 @@ namespace Oxide.Plugins
 			}
 			string pid = player.Id;
 			Channel replyChannel = DiscordCore?.Call<Channel>("GetChannel", pid);
+			string sentMessage = string.Join(" ", args);
 
 			if (replyChannel == null || replyChannel.name != player.Id) {
 				SendMessageToPlayerID(player.Id, GetTranslation("ReplyNoLiveChatInProgress", player.Id));
@@ -304,8 +315,8 @@ namespace Oxide.Plugins
 				}
 
 				DateTime now = DateTime.Now;
-				DiscordCore?.Call("SendMessageToChannel", replyChannel.id, $"({now.Hour.ToString() + ":" + now.Minute.ToString()}) {player.Name}: {string.Join(" ", args)}");
-				SendMessageToPlayerID(player.Id, GetTranslation("ReplyMessageSent", player.Id));
+				DiscordCore?.Call("SendMessageToChannel", replyChannel.id, $"({now.Hour.ToString() + ":" + now.Minute.ToString()}) {player.Name}: {sentMessage}");
+				SendMessageToPlayerID(player.Id, GetTranslation("ReplyMessageSent", player.Id, player.Name, sentMessage));
 			});
 		}
 
