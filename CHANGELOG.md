@@ -1,3 +1,17 @@
+## 0.2.0 - (June 18, 2020)
+
+- Added `ShowAdminUsername`. Enabling it will display the admin's username when responding to a player.
+![](https://i.imgur.com/K8yONSe.png)
+
+- Removed `AllowedRoles` as of Discord Extension was updated.
+  - Change the Category permissions to give read/write access to your own roles.
+
+## 0.1.6 - (February 06, 2020)
+
+Added `AllowedRoles` and modified messages.
+
+You can now give read/use access to certain discord roles with AllowedRoles
+
 ## 0.1.5 - (January 31, 2020)
 
 Added permission `discordcalladmin.use` to be able to use the command `/calladmin`

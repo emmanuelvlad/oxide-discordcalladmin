@@ -9,7 +9,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.1.6")]
+	[Info("Discord Call Admin", "evlad", "0.2.0")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -33,7 +33,7 @@ namespace Oxide.Plugins
 			public string CategoryID;
 			public string ReplyCommand;
 			public string SteamProfileIcon;
-			public List<string> AllowedRoles;
+			public Boolean ShowAdminUsername;
 
 			public static PluginConfig Default()
 			{
@@ -42,7 +42,7 @@ namespace Oxide.Plugins
 					CategoryID = "",
 					ReplyCommand = "r",
 					SteamProfileIcon = "",
-					AllowedRoles = new List<string>{}
+					ShowAdminUsername = false
 				};
 			}
 		}
@@ -155,31 +155,12 @@ namespace Oxide.Plugins
 			Channel channel = new Channel{
 				name = playerID,
 				type = ChannelType.GUILD_TEXT,
-				permission_overwrites = new List<Overwrite>{
-					new Overwrite{
-						id = _discordClient.DiscordServer.id, // @everyone
-						type = "role",
-						deny = 0x00000400 // View messages
-					}
-				}
+				parent_id = _config.CategoryID
 			};
 
-			// Temporary solution. Will use category sync when Discord.Ext will get updated
-			_config.AllowedRoles.ForEach(role => {
-				channel.permission_overwrites.Add(new Overwrite{
-					id = role,
-					type = "role",
-					allow = 0x00000400
-				});
-			});
-
 			_discordGuild.CreateGuildChannel(_discordClient, channel, (Channel createdChannel) => {
-				createdChannel.parent_id = _config.CategoryID;
-				createdChannel.ModifyChannel(_discordClient, createdChannel, _ =>
-				{
-					createdChannel.CreateMessage(_discordClient, $"@here New chat opened!\nYou are now talking to `{player.displayName}`");
-					SubscribeToChannel(createdChannel);
-				});
+				createdChannel.CreateMessage(_discordClient, $"@here New chat opened!\nYou are now talking to `{player.displayName}`");
+				SubscribeToChannel(createdChannel);
 			});
 
 			return true;
@@ -213,7 +194,13 @@ namespace Oxide.Plugins
 					channel.DeleteChannel(_discordClient);
 					return null;
 				}
-				if (!SendMessageToPlayerID(channel.name, GetTranslation("CallAdminMessageLayout", channel.name, message.content, _config.ReplyCommand))) {
+
+				string messageContent = "";
+				if (!_config.ShowAdminUsername) {
+					messageContent += "[#c9c9c9]" + message.author.username + ": [/#]";
+				}
+				messageContent += message.content;
+				if (!SendMessageToPlayerID(channel.name, GetTranslation("CallAdminMessageLayout", channel.name, messageContent, _config.ReplyCommand))) {
 					DiscordCore.Call("SendMessageToChannel", channel.id, "User is not connected, the live chat will close in 5 seconds...");
 					timer.Once(5f, () =>
 					{

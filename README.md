@@ -17,9 +17,7 @@ Replies to the admin. Default: `r`, configurable in `ReplyCommand`
   "CategoryID": "",
   "ReplyCommand": "r",
   "SteamProfileIcon": "",
-  "AllowedRoles": [
-	  "675027571959660556"
-  ]
+  "ShowAdminUsername": false
 }
 ```
 
