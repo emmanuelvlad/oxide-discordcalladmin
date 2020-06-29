@@ -9,7 +9,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.2.0")]
+	[Info("Discord Call Admin", "evlad", "0.2.1")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
