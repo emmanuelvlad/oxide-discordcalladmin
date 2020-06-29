@@ -196,7 +196,7 @@ namespace Oxide.Plugins
 				}
 
 				string messageContent = "";
-				if (!_config.ShowAdminUsername) {
+				if (_config.ShowAdminUsername) {
 					messageContent += "[#c9c9c9]" + message.author.username + ": [/#]";
 				}
 				messageContent += message.content;
