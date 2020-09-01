@@ -1,3 +1,11 @@
+## 0.2.2 - (September 1, 2020)
+
+- Fixed subscription to newly created channel
+
+## 0.2.1 - (June 29, 2020)
+
+- Fixed `ShowAdminUsername`. It was doing the opposite thing.
+
 ## 0.2.0 - (June 18, 2020)
 
 - Added `ShowAdminUsername`. Enabling it will display the admin's username when responding to a player.

@@ -9,7 +9,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.2.1")]
+	[Info("Discord Call Admin", "evlad", "0.2.2")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -160,7 +160,6 @@ namespace Oxide.Plugins
 
 			_discordGuild.CreateGuildChannel(_discordClient, channel, (Channel createdChannel) => {
 				createdChannel.CreateMessage(_discordClient, $"@here New chat opened!\nYou are now talking to `{player.displayName}`");
-				SubscribeToChannel(createdChannel);
 			});
 
 			return true;
@@ -216,7 +215,11 @@ namespace Oxide.Plugins
 
 		private BasePlayer GetPlayerByID(string ID)
 		{
-			return BasePlayer.FindByID(Convert.ToUInt64(ID));
+			try {
+				return BasePlayer.FindByID(Convert.ToUInt64(ID));
+			} catch {
+				return null;
+			}
 		}
 
 		private bool SendMessageToPlayerID(string playerID, string message)
@@ -237,6 +240,12 @@ namespace Oxide.Plugins
 		#endregion
 
 		#region Events
+
+		private void Discord_ChannelCreate(Channel channel)
+		{
+			if (channel.parent_id == _config.CategoryID)
+				SubscribeToChannel(channel);
+		}
 
 		private void Discord_ChannelDelete(Channel channel)
 		{
