@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using Oxide.Ext.Discord;
@@ -9,7 +10,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.2.2")]
+	[Info("Discord Call Admin", "evlad", "0.3.0")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -21,6 +22,7 @@ namespace Oxide.Plugins
 
 		private DiscordClient _discordClient;
 		private Guild _discordGuild;
+		private User _discordBot;
 
 		#endregion
 
@@ -30,30 +32,36 @@ namespace Oxide.Plugins
 
 		private class PluginConfig
 		{
-			public string CategoryID;
-			public string ReplyCommand;
-			public string SteamProfileIcon;
-			public Boolean ShowAdminUsername;
+			[JsonProperty(PropertyName = "CategoryID")]
+			public string CategoryID = "";
 
-			public static PluginConfig Default()
+			[JsonProperty(PropertyName = "ReplyCommand")]
+			public string ReplyCommand = "r";
+
+			[JsonProperty(PropertyName = "SteamProfileIcon")]
+			public string SteamProfileIcon = "";
+
+			[JsonProperty(PropertyName = "ShowAdminUsername")]
+			public Boolean ShowAdminUsername = false;
+		}
+
+		protected override void LoadConfig()
+		{
+			base.LoadConfig();
+			try
 			{
-				return new PluginConfig
-				{
-					CategoryID = "",
-					ReplyCommand = "r",
-					SteamProfileIcon = "",
-					ShowAdminUsername = false
-				};
+				_config = Config.ReadObject<PluginConfig>();
+				if (_config == null) throw new Exception();
+				SaveConfig();
+			}
+			catch
+			{
+				PrintError("Your configuration file contains an error. Using default configuration values.");
+				LoadDefaultConfig();
 			}
 		}
 
-		// protected override void LoadConfig()
-		// {
-		// 	base.LoadConfig();
-		// 	_config = Config.ReadObject<PluginConfig>();
-		// }
-
-		protected override void LoadDefaultConfig() => _config = PluginConfig.Default();
+		protected override void LoadDefaultConfig() => _config = new PluginConfig();
 		protected override void SaveConfig() => Config.WriteObject(_config);
 
 		#endregion
@@ -91,7 +99,6 @@ namespace Oxide.Plugins
 		private void Init()
 		{
 			permission.RegisterPermission("discordcalladmin.use", this);
-			_config = Config.ReadObject<PluginConfig>();
 
 			if (_config.ReplyCommand.Length > 0) {
 				AddCovalenceCommand(_config.ReplyCommand, "ReplyCommand");
@@ -100,11 +107,6 @@ namespace Oxide.Plugins
 
 		private void Loaded()
 		{
-			if (DiscordCore == null)
-			{
-				PrintError("Missing plugin dependency DiscordCore: https://umod.org/plugins/discord-core");
-				return;
-			}
 			if (!IsDiscordReady())
 				return;
 			Setup();
@@ -120,6 +122,7 @@ namespace Oxide.Plugins
 			DiscordCore?.Call("RegisterPluginForExtensionHooks", this);
 			_discordClient = DiscordCore?.Call<DiscordClient>("GetClient");
 			_discordGuild = _discordClient.DiscordServer;
+			_discordBot = DiscordCore?.Call<User>("GetBot");
 
 			List<Channel> channels = (List<Channel>)DiscordCore?.Call("GetAllChannels");
 			bool categoryExists = false;
@@ -147,19 +150,21 @@ namespace Oxide.Plugins
 				return false;
 			}
 
-			if (_discordGuild.channels.Find(c => c.name == playerID) != null) {
+			String channelName = playerID + "_" + _discordBot.id;
+
+			Channel newChannel = new Channel{
+				name = channelName,
+				type = ChannelType.GUILD_TEXT,
+				parent_id = _config.CategoryID
+			};
+			Channel existingChannel = _discordGuild.channels.Find(c => c.name == channelName);
+			if (existingChannel != null) {
 				PrintError("Player \"" + playerID + "\" already has an opened chat!");
 				return false;
 			}
 
-			Channel channel = new Channel{
-				name = playerID,
-				type = ChannelType.GUILD_TEXT,
-				parent_id = _config.CategoryID
-			};
-
-			_discordGuild.CreateGuildChannel(_discordClient, channel, (Channel createdChannel) => {
-				createdChannel.CreateMessage(_discordClient, $"@here New chat opened!\nYou are now talking to `{player.displayName}`");
+			_discordGuild.CreateGuildChannel(_discordClient, newChannel, (Channel channel) => {
+				channel.CreateMessage(_discordClient, $"@here New chat opened!\nYou are now talking to `{player.displayName}`");
 			});
 
 			return true;
@@ -169,12 +174,17 @@ namespace Oxide.Plugins
 		[HookMethod("StopLiveChat")]
 		public void StopLiveChat(string playerID, string reason = null)
 		{
-			Channel channel = DiscordCore.Call<Channel>("GetChannel", playerID);
+			Channel channel = DiscordCore.Call<Channel>("GetChannel", playerID + "_" + _discordBot.id);
 			if (channel == null)
 				return;
 
-			DiscordCore.Call("SendMessageToChannel", channel.id, $"@here The chat has been closed. Self-deletion in 10 seconds..." + (reason != null ? "\nReason: " + reason : ""));
-			timer.Once(10f, () =>
+			DeleteChannel(channel, reason);
+		}
+
+		private void DeleteChannel(Channel channel, string reason = null)
+		{
+			DiscordCore.Call("SendMessageToChannel", channel.id, $"Closing the chat in 5 seconds..." + (reason != null ? "\nReason: " + reason : ""));
+			timer.Once(5f, () =>
 			{
 				channel.DeleteChannel(_discordClient);
 			});
@@ -182,6 +192,10 @@ namespace Oxide.Plugins
 
 		private void SubscribeToChannel(Channel channel)
 		{
+			string[] channelName = channel.name.Split('_');
+			if (channelName.Length != 2 || channelName[1] != _discordBot.id)
+				return;
+
 			DiscordCore?.Call("SubscribeChannel", channel.id, this, new Func<Message, object>((message) => {
 				// JObject userMessage = DiscordCore?.Call<JObject>("GetUserDiscordInfo", message.author.id);
 				// if (userMessage == null) {
@@ -190,7 +204,7 @@ namespace Oxide.Plugins
 				// }
 
 				if (message.content == "!close") {
-					channel.DeleteChannel(_discordClient);
+					DeleteChannel(channel);
 					return null;
 				}
 
@@ -199,12 +213,8 @@ namespace Oxide.Plugins
 					messageContent += "[#c9c9c9]" + message.author.username + ": [/#]";
 				}
 				messageContent += message.content;
-				if (!SendMessageToPlayerID(channel.name, GetTranslation("CallAdminMessageLayout", channel.name, messageContent, _config.ReplyCommand))) {
-					DiscordCore.Call("SendMessageToChannel", channel.id, "User is not connected, the live chat will close in 5 seconds...");
-					timer.Once(5f, () =>
-					{
-						channel.DeleteChannel(_discordClient);
-					});
+				if (!SendMessageToPlayerID(channelName[0], GetTranslation("CallAdminMessageLayout", channelName[0], messageContent, _config.ReplyCommand))) {
+					DeleteChannel(channel, "User is not connected");
 				}
 
 				message.CreateReaction(_discordClient, "✅");
@@ -249,8 +259,13 @@ namespace Oxide.Plugins
 
 		private void Discord_ChannelDelete(Channel channel)
 		{
-			if (channel.parent_id == _config.CategoryID)
-				SendMessageToPlayerID(channel.name, GetTranslation("ChatClosed", channel.name));
+			if (channel.parent_id == _config.CategoryID) {
+				string[] channelName = channel.name.Split('_');
+				if (channelName.Length != 1 && channelName[1] != _discordBot.id)
+					return;
+
+				SendMessageToPlayerID(channelName[0], GetTranslation("ChatClosed", channelName[0]));
+			}
 		}
 
 		private void OnUserDisconnected(IPlayer player)
@@ -294,11 +309,10 @@ namespace Oxide.Plugins
 				player.Reply(GetTranslation("ReplyCommandUsage", player.Id, _config.ReplyCommand));
 				return;
 			}
-			string pid = player.Id;
-			Channel replyChannel = DiscordCore?.Call<Channel>("GetChannel", pid);
+			Channel replyChannel = DiscordCore?.Call<Channel>("GetChannel", player.Id + "_" + _discordBot.id);
 			string sentMessage = string.Join(" ", args);
 
-			if (replyChannel == null || replyChannel.name != player.Id) {
+			if (replyChannel == null) {
 				SendMessageToPlayerID(player.Id, GetTranslation("ReplyNoLiveChatInProgress", player.Id));
 				return;
 			}

@@ -1,3 +1,7 @@
+## 0.3.0 - (September 14, 2020)
+
+- Added multi server feature
+
 ## 0.2.2 - (September 1, 2020)
 
 - Fixed subscription to newly created channel
