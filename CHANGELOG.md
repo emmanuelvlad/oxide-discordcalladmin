@@ -1,3 +1,7 @@
+## 0.3.1 - (November 20, 2020)
+
+- Fixed translation string
+
 ## 0.3.0 - (September 14, 2020)
 
 - Added multi server feature

@@ -10,7 +10,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.3.0")]
+	[Info("Discord Call Admin", "evlad", "0.3.1")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -320,7 +320,7 @@ namespace Oxide.Plugins
 			replyChannel.GetChannelMessages(_discordClient, messages =>
 			{
 				if (messages.Count < 2) {
-					SendMessageToPlayerID(player.Id, GetTranslation("ReplyWaitAdminResponse", player.Id));
+					SendMessageToPlayerID(player.Id, GetTranslation("ReplyWaitForAdminResponse", player.Id));
 					return;
 				}
 
