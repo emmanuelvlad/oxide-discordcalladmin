@@ -1,6 +1,7 @@
-## 0.3.2 - (July 20, 2021)
+## 0.3.3 - (July 20, 2021)
 
 - Add a "View steam profile" button
+- Checking if iPlayer is null before stopping live chat
 
 ## 0.3.1 - (November 20, 2020)
 
