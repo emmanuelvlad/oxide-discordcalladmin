@@ -1,3 +1,7 @@
+## 0.3.2 - (July 20, 2021)
+
+- Add a "View steam profile" button
+
 ## 0.3.1 - (November 20, 2020)
 
 - Fixed translation string

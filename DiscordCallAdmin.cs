@@ -6,11 +6,11 @@ using Oxide.Core.Plugins;
 using Oxide.Ext.Discord;
 using Oxide.Ext.Discord.DiscordObjects;
 using ConVar;
-
+using Oxide.Ext.Discord.REST;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.3.1")]
+	[Info("Discord Call Admin", "evlad", "0.3.2")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -23,6 +23,26 @@ namespace Oxide.Plugins
 		private DiscordClient _discordClient;
 		private Guild _discordGuild;
 		private User _discordBot;
+
+		// <Temp (waiting for Discord extension next update)
+		private class DiscordComponent
+		{
+			public int type;
+			public int style;
+			public string label;
+			public string emoji;
+			public string custom_id;
+			public string url;
+			public bool disabled = false;
+			public List<DiscordComponent> components;
+		}
+
+		private class DiscordMessage
+		{
+			public string content = "";
+			public List<DiscordComponent> components;
+		}
+		// Temp/>
 
 		#endregion
 
@@ -164,7 +184,30 @@ namespace Oxide.Plugins
 			}
 
 			_discordGuild.CreateGuildChannel(_discordClient, newChannel, (Channel channel) => {
-				channel.CreateMessage(_discordClient, $"@here New chat opened!\nYou are now talking to `{player.displayName}`");
+				// <Todo
+				// Update the message in the next Discord extension update
+				DiscordMessage createMessage = new DiscordMessage
+				{
+					content = $"@here New chat opened!\nYou are now talking to `{player.displayName}`",
+					components = new List<DiscordComponent>()
+					{
+						new DiscordComponent(){
+							type = 1,
+							components = new List<DiscordComponent>()
+							{
+								new DiscordComponent(){
+									type = 2,
+									style = 5,
+									label = "View steam profile",
+									url = $"https://steamcommunity.com/profiles/{playerID}"
+								}
+							}
+						}
+					}
+				};
+
+				_discordClient.REST.DoRequest($"/channels/{channel.id}/messages", RequestMethod.POST, createMessage, () => {});
+				// Todo/>
 			});
 
 			return true;
