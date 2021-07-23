@@ -10,7 +10,7 @@ using Oxide.Ext.Discord.REST;
 
 namespace Oxide.Plugins
 {
-	[Info("Discord Call Admin", "evlad", "0.3.3")]
+	[Info("Discord Call Admin", "evlad", "0.3.4")]
 	[Description("Creates a live chat between a specific player and Admins through Discord")]
 
 	internal class DiscordCallAdmin : CovalencePlugin
@@ -311,11 +311,10 @@ namespace Oxide.Plugins
 			}
 		}
 
-		private void OnUserDisconnected(IPlayer player)
+		private void OnPlayerDisconnected(BasePlayer player, string reason)
 		{
-			if (player != null) {
-				StopLiveChat(player.Id, "Player disconnected.");
-			}
+			if (player == null) return;
+			StopLiveChat(player.UserIDString, reason);
 		}
 
 		#endregion

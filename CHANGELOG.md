@@ -1,3 +1,7 @@
+## 0.3.4 - (July 24, 2021)
+
+- Changing hook from `OnUserDisconnected` to `OnPlayerDisconnected`
+
 ## 0.3.3 - (July 20, 2021)
 
 - Add a "View steam profile" button
